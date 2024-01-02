@@ -40,7 +40,7 @@ def main():
     args = create_argparser().parse_args()
     args.clip_layers = [2]
 
-    dist_util.setup_dist()
+    dist_util.setup_dist(3)
     logger.configure(dir='output/test')
 
     if not os.path.exists(args.results_path):
@@ -54,7 +54,8 @@ def main():
         args.class_cond = False # if current_scale == 0 else True
         # args.num_channels = min(args.num_channels_init * pow(2, math.floor(current_scale / 2)), 512)
         # args.num_res_blocks = min(args.num_res_blocks_init + math.floor(current_scale / 4), 6)
-        args.model_path = os.path.join(args.model_root, 'scale_8', 'ema_0.9999_100000.pt')
+        args.model_path = os.path.join(args.model_root, 'ema_0.9999_050000.pt')
+        # args.model_path = os.path.join(args.model_root, 'scale_8', 'ema_0.9999_100000.pt')
         logger.log("creating model and diffusion...")
         model, diffusion = create_model_and_diffusion(
             **args_to_dict(args, model_and_diffusion_defaults().keys())

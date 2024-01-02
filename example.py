@@ -28,7 +28,7 @@ from guided_diffusion.train_util import TrainLoop, parse_resume_step_from_filena
 def main():
     args = create_argparser().parse_args()
 
-    dist_util.setup_dist()
+    dist_util.setup_dist(3)
     logger.configure()
 
     real = tv.transforms.ToTensor()(Image.open(args.data_dir))[None]
@@ -40,7 +40,11 @@ def main():
     model, diffusion = create_model_and_diffusion(
         **args_to_dict(args, model_and_diffusion_defaults().keys())
     )
+    model.load_state_dict(
+            dist_util.load_state_dict('./output/exp1/ema_0.9999_050000.pt', map_location="cpu")
+        )
     model.to(dist_util.dev())
+    
     schedule_sampler = create_named_schedule_sampler(args.schedule_sampler, diffusion)
     
     # model = torch.compile(model)
@@ -77,26 +81,26 @@ def main():
         weight_decay=args.weight_decay,
         lr_anneal_steps=args.lr_anneal_steps,
         )
-    trainer.run_loop()
+    # trainer.run_loop()
     
-    # scheduler = DDPMScheduler.from_pretrained("google/ddpm-cat-256")
-    # # model = UNet2DModel.from_pretrained("google/ddpm-cat-256").to("cuda")
-    # scheduler.set_timesteps(50)
+    scheduler = DDPMScheduler.from_pretrained("google/ddpm-cat-256")
+    # model = UNet2DModel.from_pretrained("google/ddpm-cat-256").to("cuda")
+    scheduler.set_timesteps(50)
 
-    # sample_size = args.image_size
-    # noise = torch.randn((1, 3, sample_size, sample_size), device="cuda")
-    # input = noise
+    sample_size = args.image_size
+    noise = torch.randn((1, 3, sample_size, sample_size), device="cuda")
+    input = noise
 
-    # for t in scheduler.timesteps:
-    #     with torch.no_grad():
-    #         noisy_residual = model(input, t).sample
-    #         prev_noisy_sample = scheduler.step(noisy_residual, t, input).prev_sample
-    #         input = prev_noisy_sample
+    for t in scheduler.timesteps:
+        with torch.no_grad():
+            noisy_residual = model(input, t).sample
+            prev_noisy_sample = scheduler.step(noisy_residual, t, input).prev_sample
+            input = prev_noisy_sample
 
-    # image = (input / 2 + 0.5).clamp(0, 1)
-    # image = image.cpu().permute(0, 2, 3, 1).numpy()[0]
-    # image = Image.fromarray((image * 255).round().astype("uint8"))
-    # image
+    image = (input / 2 + 0.5).clamp(0, 1)
+    image = image.cpu().permute(0, 2, 3, 1).numpy()[0]
+    image = Image.fromarray((image * 255).round().astype("uint8"))
+    cv2.imwrite('example.jpg', image)
 
 
 def create_argparser():
